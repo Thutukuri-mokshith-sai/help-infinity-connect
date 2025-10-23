@@ -106,11 +106,11 @@ export const Navbar = () => {
                     )}
                   </Button>
                 </Link>
-                <Link to="/certificates">
+                {/* <Link to="/certificates">
                   <Button variant="ghost" size="icon">
                     <Award className="w-5 h-5" />
                   </Button>
-                </Link>
+                </Link> */}
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full">
                   <span className="font-medium text-sm">{user.name}</span>
                 </div>
