@@ -13,16 +13,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from 'sonner';
-import { getCurrentUser, addDonation, updateUser, addNotification } from '@/utils/storage';
-import { Donation, Category } from '@/types';
-import { Gift, Tag, FileText, List, MapPin, Send } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { donationsApi } from '@/utils/api';
+import { Category } from '@/types';
+import { Gift, Tag, FileText, List, MapPin, Send, Phone } from 'lucide-react';
 
 const categories: Category[] = ['Clothes', 'Food', 'Books', 'Electronics', 'Furniture', 'Others'];
 
 const Donate = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const user = getCurrentUser();
 
   if (!user) {
     toast.error('Please login to donate');
@@ -35,38 +36,25 @@ const Donate = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const donation: Donation = {
-      id: Date.now().toString(),
-      title: formData.get('title') as string,
-      description: formData.get('description') as string,
-      category: formData.get('category') as string,
-      location: formData.get('location') as string,
-      status: 'Available',
-      donor: user.username,
-      donorId: user.id,
-      date: new Date().toISOString(),
-    };
-
-    setTimeout(() => {
-      addDonation(donation);
-      
-      // Update user donation count
-      updateUser(user.id, { donationCount: user.donationCount + 1 });
-      
-      // Add notification
-      addNotification({
-        id: Date.now().toString(),
-        type: 'donation',
-        message: `Your donation "${donation.title}" has been listed successfully!`,
-        timestamp: new Date().toISOString(),
-        read: false,
-        userId: user.id,
+    
+    try {
+      await donationsApi.create({
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        category: formData.get('category') as string,
+        location: formData.get('location') as string,
+        latitude: 0, // You can implement geolocation later
+        longitude: 0,
+        contact: formData.get('contact') as string,
       });
 
       toast.success('Donation listed successfully! Thank you for your generosity!');
-      setIsLoading(false);
       navigate('/browse');
-    }, 500);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create donation');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -140,6 +128,21 @@ const Donate = () => {
                   required
                   defaultValue={user.location}
                   placeholder="e.g., New York"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contact">
+                  <Phone className="w-4 h-4 inline mr-2" />
+                  Contact Number
+                </Label>
+                <Input
+                  id="contact"
+                  name="contact"
+                  type="tel"
+                  required
+                  defaultValue={user.phone_number}
+                  placeholder="Your contact number"
                 />
               </div>
 

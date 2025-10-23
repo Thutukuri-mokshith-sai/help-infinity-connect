@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -9,9 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getDonations, getCurrentUser, updateDonation, addNotification } from '@/utils/storage';
-import { sortByLocation } from '@/utils/location';
-import { Donation, Category } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { donationsApi, DonationResponse } from '@/utils/api';
+import { Category } from '@/types';
 import { toast } from 'sonner';
 import { Search, Filter, MapPin, User, Calendar, Shirt, Utensils, Book, Laptop, Sofa, Package, HandHeart } from 'lucide-react';
 
@@ -27,75 +28,45 @@ const categoryIcons = {
 };
 
 const Browse = () => {
-  const [donations, setDonations] = useState<Donation[]>([]);
-  const [filteredDonations, setFilteredDonations] = useState<Donation[]>([]);
+  const [donations, setDonations] = useState<DonationResponse[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const user = getCurrentUser();
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     loadDonations();
-  }, []);
+  }, [categoryFilter, statusFilter]);
 
-  useEffect(() => {
-    filterDonations();
-  }, [categoryFilter, statusFilter, donations]);
-
-  const loadDonations = () => {
-    let allDonations = getDonations();
-    
-    // Sort by location if user is logged in
-    if (user) {
-      allDonations = sortByLocation(allDonations, user.location);
+  const loadDonations = async () => {
+    setIsLoading(true);
+    try {
+      const filters: any = {};
+      if (categoryFilter && categoryFilter !== 'all') filters.category = categoryFilter;
+      if (statusFilter && statusFilter !== 'all') filters.status = statusFilter;
+      
+      const data = await donationsApi.getAll(filters);
+      setDonations(data);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load donations');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setDonations(allDonations);
   };
 
-  const filterDonations = () => {
-    let filtered = donations;
-
-    if (categoryFilter) {
-      filtered = filtered.filter(d => d.category === categoryFilter);
-    }
-
-    if (statusFilter) {
-      filtered = filtered.filter(d => d.status === statusFilter);
-    }
-
-    setFilteredDonations(filtered);
-  };
-
-  const handleClaim = (donation: Donation) => {
+  const handleClaim = async (donationId: number) => {
     if (!user) {
       toast.error('Please login to claim donations');
       return;
     }
 
-    updateDonation(donation.id, { status: 'Claimed' });
-    
-    // Notify donor
-    addNotification({
-      id: Date.now().toString(),
-      type: 'claim',
-      message: `${user.username} claimed your donation: "${donation.title}"`,
-      timestamp: new Date().toISOString(),
-      read: false,
-      userId: donation.donorId,
-    });
-
-    // Notify claimer
-    addNotification({
-      id: (Date.now() + 1).toString(),
-      type: 'claim',
-      message: `You claimed: "${donation.title}". Contact ${donation.donor} for pickup.`,
-      timestamp: new Date().toISOString(),
-      read: false,
-      userId: user.id,
-    });
-
-    toast.success('Donation claimed successfully! Check notifications for details.');
-    loadDonations();
+    try {
+      await donationsApi.claim(donationId);
+      toast.success('Donation claimed successfully! Check notifications for details.');
+      loadDonations();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to claim donation');
+    }
   };
 
   return (
@@ -107,7 +78,7 @@ const Browse = () => {
             Browse Available Donations
           </h1>
           <p className="text-muted-foreground">
-            {user ? `Sorted by distance from ${user.location}` : 'Login to see donations near you'}
+            {user ? `Welcome, ${user.name}!` : 'Login to claim donations'}
           </p>
         </div>
 
@@ -170,7 +141,11 @@ const Browse = () => {
         </Card>
 
         {/* Donations Grid */}
-        {filteredDonations.length === 0 ? (
+        {isLoading ? (
+          <Card className="p-12 text-center animate-fade-in">
+            <p className="text-muted-foreground">Loading donations...</p>
+          </Card>
+        ) : donations.length === 0 ? (
           <Card className="p-12 text-center animate-fade-in">
             <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-xl font-semibold mb-2">No donations found</h3>
@@ -178,12 +153,12 @@ const Browse = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDonations.map((donation, index) => {
+            {donations.map((donation, index) => {
               const Icon = categoryIcons[donation.category as Category] || Package;
               
               return (
                 <Card
-                  key={donation.id}
+                  key={donation.donation_id}
                   className="overflow-hidden hover:shadow-medium transition-all hover:-translate-y-1 animate-fade-in"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
@@ -205,11 +180,11 @@ const Browse = () => {
                       </div>
                       <div className="flex items-center">
                         <User className="w-4 h-4 mr-2" />
-                        {donation.donor}
+                        {donation.Donor?.name || 'Anonymous'}
                       </div>
                       <div className="flex items-center">
                         <Calendar className="w-4 h-4 mr-2" />
-                        {new Date(donation.date).toLocaleDateString()}
+                        {new Date(donation.date_posted).toLocaleDateString()}
                       </div>
                     </div>
 
@@ -217,8 +192,8 @@ const Browse = () => {
                       <Badge variant={donation.status === 'Available' ? 'default' : 'secondary'}>
                         {donation.status}
                       </Badge>
-                      {donation.status === 'Available' && user && donation.donorId !== user.id && (
-                        <Button size="sm" onClick={() => handleClaim(donation)}>
+                      {donation.status === 'Available' && user && donation.donor_id !== user.user_id && (
+                        <Button size="sm" onClick={() => handleClaim(donation.donation_id)}>
                           <HandHeart className="w-4 h-4" />
                           Claim
                         </Button>
@@ -234,9 +209,5 @@ const Browse = () => {
     </div>
   );
 };
-
-const Label = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={className}>{children}</div>
-);
 
 export default Browse;

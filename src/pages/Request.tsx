@@ -13,16 +13,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from 'sonner';
-import { getCurrentUser, addRequest, addNotification } from '@/utils/storage';
-import { Request as RequestType, Category } from '@/types';
-import { HandHeart, Tag, FileText, List, MapPin, Send } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { requestsApi } from '@/utils/api';
+import { Category } from '@/types';
+import { HandHeart, Tag, FileText, List, MapPin, Send, Phone } from 'lucide-react';
 
 const categories: Category[] = ['Clothes', 'Food', 'Books', 'Electronics', 'Furniture', 'Others'];
 
 const Request = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const user = getCurrentUser();
 
   if (!user) {
     toast.error('Please login to post a request');
@@ -35,35 +36,25 @@ const Request = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const request: RequestType = {
-      id: Date.now().toString(),
-      title: formData.get('title') as string,
-      description: formData.get('description') as string,
-      category: formData.get('category') as string,
-      location: formData.get('location') as string,
-      requester: user.username,
-      requesterId: user.id,
-      date: new Date().toISOString(),
-      fulfilled: false,
-    };
-
-    setTimeout(() => {
-      addRequest(request);
-      
-      // Add notification
-      addNotification({
-        id: Date.now().toString(),
-        type: 'request',
-        message: `Your request "${request.title}" has been posted successfully!`,
-        timestamp: new Date().toISOString(),
-        read: false,
-        userId: user.id,
+    
+    try {
+      await requestsApi.create({
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        category: formData.get('category') as string,
+        location: formData.get('location') as string,
+        latitude: 0,
+        longitude: 0,
+        contact: formData.get('contact') as string,
       });
 
       toast.success('Request posted successfully! We hope you find help soon!');
-      setIsLoading(false);
       navigate('/dashboard');
-    }, 500);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create request');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -137,6 +128,21 @@ const Request = () => {
                   required
                   defaultValue={user.location}
                   placeholder="e.g., New York"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contact">
+                  <Phone className="w-4 h-4 inline mr-2" />
+                  Contact Number
+                </Label>
+                <Input
+                  id="contact"
+                  name="contact"
+                  type="tel"
+                  required
+                  defaultValue={user.phone_number}
+                  placeholder="Your contact number"
                 />
               </div>
 

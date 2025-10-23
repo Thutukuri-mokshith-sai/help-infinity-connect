@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { getAllUsers, addUser, setCurrentUser } from '@/utils/storage';
-import { User } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
 import { UserCircle, Mail, Lock, MapPin } from 'lucide-react';
 import {
   Select,
@@ -20,6 +19,7 @@ import { getPopularCities } from '@/utils/location';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { login, register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -27,22 +27,18 @@ const Auth = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const username = formData.get('login-username') as string;
+    const email = formData.get('login-email') as string;
     const password = formData.get('login-password') as string;
 
-    const users = getAllUsers();
-    const user = users.find(u => u.username === username);
-
-    setTimeout(() => {
-      if (user) {
-        setCurrentUser(user);
-        toast.success(`Welcome back, ${user.username}!`);
-        navigate('/');
-      } else {
-        toast.error('Invalid username or password');
-      }
+    try {
+      await login(email, password);
+      toast.success('Welcome back!');
+      navigate('/');
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -50,36 +46,20 @@ const Auth = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const username = formData.get('register-username') as string;
+    const name = formData.get('register-name') as string;
     const email = formData.get('register-email') as string;
     const password = formData.get('register-password') as string;
     const location = formData.get('register-location') as string;
 
-    const users = getAllUsers();
-    const existingUser = users.find(u => u.username === username || u.email === email);
-
-    setTimeout(() => {
-      if (existingUser) {
-        toast.error('Username or email already exists');
-        setIsLoading(false);
-        return;
-      }
-
-      const newUser: User = {
-        id: Date.now().toString(),
-        username,
-        email,
-        location,
-        donationCount: 0,
-        createdAt: new Date().toISOString(),
-      };
-
-      addUser(newUser);
-      setCurrentUser(newUser);
-      toast.success(`Account created successfully! Welcome, ${username}!`);
+    try {
+      await register({ name, email, password, location });
+      toast.success(`Account created successfully! Welcome, ${name}!`);
       navigate('/');
+    } catch (error: any) {
+      toast.error(error.message || 'Registration failed');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -101,15 +81,16 @@ const Auth = () => {
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-username">
-                    <UserCircle className="w-4 h-4 inline mr-2" />
-                    Username
+                  <Label htmlFor="login-email">
+                    <Mail className="w-4 h-4 inline mr-2" />
+                    Email
                   </Label>
                   <Input
-                    id="login-username"
-                    name="login-username"
+                    id="login-email"
+                    name="login-email"
+                    type="email"
                     required
-                    placeholder="Enter your username"
+                    placeholder="your@email.com"
                   />
                 </div>
                 <div className="space-y-2">
@@ -134,15 +115,15 @@ const Auth = () => {
             <TabsContent value="register">
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="register-username">
+                  <Label htmlFor="register-name">
                     <UserCircle className="w-4 h-4 inline mr-2" />
-                    Username
+                    Name
                   </Label>
                   <Input
-                    id="register-username"
-                    name="register-username"
+                    id="register-name"
+                    name="register-name"
                     required
-                    placeholder="Choose a username"
+                    placeholder="Your full name"
                   />
                 </div>
                 <div className="space-y-2">

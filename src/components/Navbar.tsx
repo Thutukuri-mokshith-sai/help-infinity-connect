@@ -1,38 +1,36 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { getCurrentUser, setCurrentUser, getNotifications } from '@/utils/storage';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
+import { notificationsApi } from '@/utils/api';
 import { Infinity, Home, Heart, Search, HandHeart, LayoutDashboard, Bell, Award, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 
 export const Navbar = () => {
   const location = useLocation();
-  const [user, setUser] = useState(getCurrentUser());
+  const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const handleStorage = () => {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
+    if (user) {
+      const loadNotifications = async () => {
+        try {
+          const notifications = await notificationsApi.getAll();
+          setUnreadCount(notifications.filter(n => !n.is_read).length);
+        } catch (error) {
+          // Silently fail
+        }
+      };
       
-      if (currentUser) {
-        const notifications = getNotifications(currentUser.id);
-        setUnreadCount(notifications.filter(n => !n.read).length);
-      }
-    };
+      loadNotifications();
+      const interval = setInterval(loadNotifications, 30000); // Poll every 30 seconds
 
-    window.addEventListener('storage', handleStorage);
-    const interval = setInterval(handleStorage, 1000);
-
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      clearInterval(interval);
-    };
-  }, []);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   const handleLogout = () => {
-    setCurrentUser(null);
-    setUser(null);
+    logout();
     window.location.href = '/';
   };
 
@@ -114,7 +112,7 @@ export const Navbar = () => {
                   </Button>
                 </Link>
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full">
-                  <span className="font-medium text-sm">{user.username}</span>
+                  <span className="font-medium text-sm">{user.name}</span>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
                   <LogOut className="w-4 h-4" />
