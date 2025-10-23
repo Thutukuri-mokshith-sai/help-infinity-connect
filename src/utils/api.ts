@@ -1,5 +1,5 @@
 // API Base URL - Update this to your backend URL
-export const API_BASE_URL = 'https://help-infinity.onrender.com//api';
+export const API_BASE_URL = 'https://help-infinity.onrender.com/api';
 
 // Token management
 export const getAuthToken = (): string | null => {
