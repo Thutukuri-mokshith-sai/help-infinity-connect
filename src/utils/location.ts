@@ -7,7 +7,7 @@ export const calculateDistance = (location1: string, location2: string): number 
   // Exact match
   if (loc1 === loc2) return 0;
   
-  // Same state/city partial match
+  // Same district/city partial match
   if (loc1.includes(loc2) || loc2.includes(loc1)) return 5;
   
   // Different locations
@@ -25,33 +25,35 @@ export const sortByLocation = <T extends { location: string }>(
   });
 };
 
-// Get popular US cities for autocomplete
+// Get popular Andhra Pradesh cities for autocomplete
 export const getPopularCities = (): string[] => {
   return [
-    'New York',
-    'Los Angeles',
-    'Chicago',
-    'Houston',
-    'Phoenix',
-    'Philadelphia',
-    'San Antonio',
-    'San Diego',
-    'Dallas',
-    'San Jose',
-    'Austin',
-    'Jacksonville',
-    'Fort Worth',
-    'Columbus',
-    'Charlotte',
-    'San Francisco',
-    'Indianapolis',
-    'Seattle',
-    'Denver',
-    'Boston',
-    'Miami',
-    'Atlanta',
-    'Las Vegas',
-    'Portland',
-    'Detroit',
+    'Madanapalle',
+    'Visakhapatnam',
+    'Vijayawada',
+    'Guntur',
+    'Nellore',
+    'Kurnool',
+    'Tirupati',
+    'Rajahmundry',
+    'Kakinada',
+    'Anantapur',
+    'Kadapa',
+    'Eluru',
+    'Ongole',
+    'Chittoor',
+    'Srikakulam',
+    'Nandyal',
+    'Machilipatnam',
+    'Proddatur',
+    'Tenali',
+    'Adoni',
+    'Hindupur',
+    'Bhimavaram',
+    'Amaravati',
+    'Tadepalligudem',
+    'Dharmavaram',
+    'Gudivada',
+    'Narasaraopet',
   ];
 };
